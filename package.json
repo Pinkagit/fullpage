@@ -1,0 +1,20 @@
+{
+  "name": "fullpage",
+  "version": "1.0.0",
+  "description": "A plugin using full screen dispaly page",
+  "main": "index.js",
+  "author": "pinkagit",
+  "license": "MIT",
+  "scripts": {
+    "dev": "webpack --mode=development --colors",
+    "build": "webpack --mode=production -o dist/fullpage.min.js --colors"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.5.0",
+    "@babel/preset-env": "^7.5.0",
+    "babel-loader": "^8.0.6",
+    "core-js": "^2.6.5",
+    "webpack": "^4.35.2",
+    "webpack-cli": "^3.3.5"
+  }
+}
