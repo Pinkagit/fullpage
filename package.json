@@ -2,7 +2,7 @@
   "name": "fullpage",
   "version": "1.0.0",
   "description": "A plugin using full screen dispaly page",
-  "main": "index.js",
+  "main": "dist/fullpage.min.js",
   "author": "pinkagit",
   "license": "MIT",
   "scripts": {

@@ -8,47 +8,49 @@
         <style>
             body {
                 margin: 0;
-                overflow: hidden;
             }
-            .fullpage-container {
-                position: relative;
-                top: 0px;
-                transition: all 0.5s;
-            }
-            .fullpage {
-                height: 100%;
+            .bkx {
                 display: flex;
                 justify-content: center;
                 align-items: center;
             }
-            .fullpage > span {
+            .bkx > span {
                 color: #fff;
                 font-size: 48px;
             }
-            .fullpage:nth-of-type(1) {
-                background: lightblue;
+            .bkx:nth-of-type(1) {
+                /* background: lightblue; */
+                background: url("https://hbimg.huabanimg.com/1b562e675ab49006228ca9aecb1b2c2557851017f4dc-9og5Up_fw658") no-repeat center;
+                background-size: cover;
             }
-            .fullpage:nth-of-type(2) {
-                background: lightcoral;
+            .bkx:nth-of-type(2) {
+                /* background: lightcoral; */
+                background: url("https://hbimg.huabanimg.com/c3a1197fba586f9d7ce79fe1d2ccbe9b412ef42d1986a-Sa4JmJ_fw658") no-repeat center;
+                background-size: cover;
             }
-            .fullpage:nth-of-type(3) {
-                background: lightpink;
+            .bkx:nth-of-type(3) {
+                /* background: lightpink; */
+                background: url("https://hbimg.huabanimg.com/4d0628cb2203d298cde597b15b9ad911eb1ddb2b119a6-KS25T2_fw658") no-repeat center;
+                background-size: cover;
             }
         </style>
     </head>
     <body>
-        <div class="fullpage-container">
-            <div class="fullpage"></div>
-            <div class="fullpage"></div>
-            <div class="fullpage"></div>
+        <div class="bbox">
+            <div class="bkx 1"></div>
+            <div class="bkx 2"></div>
+            <div class="bkx 3"></div>
         </div>
-        <script src="../dist/fullpage.js"></script>
-        <!-- <script src="../dist//fullpage.min.js"></script> -->
+        
+        <!-- <script src="../dist/fullpage.js"></script> -->
+        <script src="../dist//fullpage.min.js"></script>
         <script>
-            var fullpage = new FullPage()
+            var fullpage = new FullPage({
+                containerClassName: ".bbox",
+                pageClassName: ".bkx"
+            })
             fullpage.init()
             console.log(fullpage)
-            console.log(new FullPage())
         </script>
     </body>
 </html>
