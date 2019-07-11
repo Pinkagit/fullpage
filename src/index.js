@@ -12,6 +12,7 @@ class FullPage {
         this.pagesNum = document.querySelectorAll(`${this.options.containerClassName}>${this.options.pageClassName}`).length       // 计算page页数
         this.viewHeight = document.documentElement.clientHeight                                 // 计算浏览器可视区域高度
         this.delay = this.options.delay     // 截流和防抖函数的延迟时间
+        this.translateDis = 0
     }
     // 原型方法
     debounce(method, context, delay) {       // 防抖动函数，method 回调函数， context 上下文, delay 延迟时间
@@ -62,24 +63,24 @@ class FullPage {
         }
     }
     goDown() {
-        if (-this.containerDom.offsetTop <= this.viewHeight * (this.pagesNum - 2)) {
+        if (-this.translateDis <= this.viewHeight * (this.pagesNum - 2)) {
             this.activeIndex += 1
-            this.containerDom.style.top = this.containerDom.offsetTop - this.viewHeight + "px"
-            this.ofsetBgPosition()
+            this.translateDis -= this.viewHeight
+            this.containerDom.style.transform = `translateY(${this.translateDis}px)`
         }
     }
     goUp() {
-        if (-this.containerDom.offsetTop >= this.viewHeight) {
+        if (-this.translateDis >= this.viewHeight) {
             this.activeIndex -= 1
-            this.containerDom.style.top = this.containerDom.offsetTop + this.viewHeight + "px"
-            this.ofsetBgPosition()
+            this.translateDis += this.viewHeight
+            this.containerDom.style.transform = `translateY(${this.translateDis}px)`
         }
     }
     resizeEvent() {
         this.viewHeight = document.documentElement.clientHeight;
         this.containerDom.style.height = this.viewHeight + "px"
-        this.containerDom.style.top = - this.viewHeight * (this.activeIndex - 1) + 'px'
-        this.ofsetBgPosition()
+        this.translateDis = -this.viewHeight * (this.activeIndex - 1)
+        this.containerDom.style.transform = `translateY(${this.translateDis}px)`
     }
     addScrollMouseEvent() {
         if (navigator.userAgent.toLowerCase().indexOf("firefox") === -1) {      // 鼠标滚轮监听，火狐鼠标滚动事件不同其他
@@ -98,7 +99,7 @@ class FullPage {
         }, { passive: false })
     }
     addResizeEvent() {
-        window.addEventListener("resize", this.debounce(this.resizeEvent, this, this.delay))       // 浏览器窗口大小改变时
+        window.addEventListener("resize", this.debounce(this.resizeEvent, this, 300))       // 浏览器窗口大小改变时
     }
     ofsetBgPosition() {      // 给页面添加背景定位偏移
         for(let i = 0, len = this.containerDom.children.length; i < len; i++) {
@@ -108,25 +109,18 @@ class FullPage {
             } else {
                 pageDom.style.backgroundPosition = `center ${ this.viewHeight/10*(i-(this.activeIndex-1)) }px`
             }
-            // 设置初始样式
-            pageDom.style.height = "100%"
-            pageDom.style.backgroundAttachment = "fixed"    // 视差设置
-            pageDom.style.transition = "all 0.8s ease-in-out"
-            pageDom.style.transitionDelay = "0.2s";
         }
     }
     addStyle() {        // 添加初始样式
         document.body.style.overflowY = 'hidden';       // 隐藏body滚动条
         this.containerDom.style.position = 'relative';
         this.containerDom.style.height = this.viewHeight + "px"     // 初始给容器高度
-        this.containerDom.style.top = '0px';
         this.containerDom.style.transition = "all 0.8s ease-in-out";
         this.containerDom.style.transitionDelay = "0.2s"; 
     }
     // 初始化函数
     init() {
         this.addStyle()
-        this.ofsetBgPosition()
         this.addScrollMouseEvent()
         this.addTouchMoveEvent()
         this.addResizeEvent()
