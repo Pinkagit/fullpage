@@ -118,6 +118,11 @@ class FullPage {
         this.containerDom.style.transition = "all 0.8s ease-in-out";
         this.containerDom.style.transitionDelay = "0.2s"; 
     }
+    goTo(index) {
+        this.activeIndex = index;
+        this.translateDis = -this.viewHeight*(this.activeIndex-1);
+        this.containerDom.style.transform = `translateY(${this.translateDis}px)`
+    }
     // 初始化函数
     init() {
         this.addStyle()
