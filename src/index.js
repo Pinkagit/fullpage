@@ -12,7 +12,8 @@ class FullPage {
         this.pagesNum = document.querySelectorAll(`${this.options.containerClassName}>${this.options.pageClassName}`).length       // 计算page页数
         this.viewHeight = document.documentElement.clientHeight                                 // 计算浏览器可视区域高度
         this.delay = this.options.delay     // 截流和防抖函数的延迟时间
-        this.translateDis = 0
+        this.translateDis = 0,      // 元素偏移距离
+        this.scrollDisable = false     // 禁止滚动
     }
     // 原型方法
     debounce(method, context, delay) {       // 防抖动函数，method 回调函数， context 上下文, delay 延迟时间
@@ -47,6 +48,10 @@ class FullPage {
         }
     }
     scrollMouse(event) {
+        if(this.scrollDisable) {        // 根据参数禁用滚动
+            return false;
+        }
+        
         let delta = this.getWheelDelta(event)
         if (delta < 0) {        // delta < 0，页面向下滚动
             this.goDown()
@@ -55,6 +60,10 @@ class FullPage {
         }
     }
     touchEnd(event) {
+        if(this.scrollDisable) {        // 根据参数禁用滚动
+            return false;
+        }
+        
         this.endY = event.changedTouches[0].pageY
         if (this.endY - this.startY < 0) {      // 手指向上滑动，对应页面向下滚动
             this.goDown()
