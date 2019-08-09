@@ -4,7 +4,8 @@ class FullPage {
         const defaultOptions = {        // 默认配置
             containerClassName: ".fullpage-container",
             pageClassName: ".fullpage",
-            delay: 1000,
+            delay: 600,
+            disableSrcollClassName: []  // 禁止触发滚动的元素类名
         }
         this.options = Object.assign(defaultOptions, options)      // 合并自定义配置
         this.activeIndex = 1                                                                   // 当前展示的页面序号
@@ -14,6 +15,7 @@ class FullPage {
         this.delay = this.options.delay     // 截流和防抖函数的延迟时间
         this.translateDis = 0,      // 元素偏移距离
         this.scrollDisable = false     // 禁止滚动
+        this.disableSrcollClassName = this.options.disableSrcollClassName
     }
     // 原型方法
     debounce(method, context, delay) {       // 防抖动函数，method 回调函数， context 上下文, delay 延迟时间
@@ -48,6 +50,13 @@ class FullPage {
         }
     }
     scrollMouse(event) {
+        for(let i = 0, len = this.disableSrcollClassName.length; i < len; i++) {
+            let disClassName = this.disableSrcollClassName[i];
+            if(event.target.className.indexOf(disClassName) !== -1) {       // 根据触发元素类名禁用滚动
+                return false;
+            }
+        }
+        
         if(this.scrollDisable) {        // 根据参数禁用滚动
             return false;
         }
@@ -60,11 +69,23 @@ class FullPage {
         }
     }
     touchEnd(event) {
+        for(let i = 0, len = this.disableSrcollClassName.length; i < len; i++) {
+            let disClassName = this.disableSrcollClassName[i];
+            if(event.target.className.indexOf(disClassName) !== -1) {       // 根据触发元素类名禁用滚动
+                return false;
+            }
+        }
+        
         if(this.scrollDisable) {        // 根据参数禁用滚动
             return false;
         }
         
         this.endY = event.changedTouches[0].pageY
+
+        if(Math.abs(this.endY - this.startY) <= 50) {       // 滑动太短
+            return false;
+        }
+        
         if (this.endY - this.startY < 0) {      // 手指向上滑动，对应页面向下滚动
             this.goDown()
         } else if(this.endY - this.startY > 0) {        // 手指向下滑动，对应页面向上滚动
@@ -73,19 +94,27 @@ class FullPage {
     }
     goDown() {
         if (-this.translateDis <= this.viewHeight * (this.pagesNum - 2)) {
+            this.containerDom.style.transition = "all 0.6s ease-in-out";
             this.activeIndex += 1
             this.translateDis -= this.viewHeight
             this.containerDom.style.transform = `translateY(${this.translateDis}px)`
+
+            // this.ofsetBgPosition()
         }
     }
     goUp() {
         if (-this.translateDis >= this.viewHeight) {
+            
+            this.containerDom.style.transition = "all 0.6s ease-in-out";
             this.activeIndex -= 1
             this.translateDis += this.viewHeight
             this.containerDom.style.transform = `translateY(${this.translateDis}px)`
+
+            // this.ofsetBgPosition()
         }
     }
     resizeEvent() {
+        this.containerDom.style.transition = "none";
         this.viewHeight = document.documentElement.clientHeight;
         this.containerDom.style.height = this.viewHeight + "px"
         this.translateDis = -this.viewHeight * (this.activeIndex - 1)
@@ -108,7 +137,7 @@ class FullPage {
         }, { passive: false })
     }
     addResizeEvent() {
-        window.addEventListener("resize", this.debounce(this.resizeEvent, this, 300))       // 浏览器窗口大小改变时
+        window.addEventListener("resize", this.debounce(this.resizeEvent, this, 0))       // 浏览器窗口大小改变时
     }
     ofsetBgPosition() {      // 给页面添加背景定位偏移
         for(let i = 0, len = this.containerDom.children.length; i < len; i++) {
@@ -124,10 +153,10 @@ class FullPage {
         document.body.style.overflowY = 'hidden';       // 隐藏body滚动条
         this.containerDom.style.position = 'relative';
         this.containerDom.style.height = this.viewHeight + "px"     // 初始给容器高度
-        this.containerDom.style.transition = "all 0.8s ease-in-out";
-        this.containerDom.style.transitionDelay = "0.2s"; 
+        this.containerDom.style.transition = "all 0.6s ease-in-out";
     }
     goTo(index) {
+        this.containerDom.style.transition = "all 0.6s ease-in-out";
         this.activeIndex = index;
         this.translateDis = -this.viewHeight*(this.activeIndex-1);
         this.containerDom.style.transform = `translateY(${this.translateDis}px)`
