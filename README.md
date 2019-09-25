@@ -21,8 +21,8 @@ fullpage.init()
 ```
 
 ## 选项
-+ `scrollDisable` : (默认 false) 是否禁用滚动
 + `disableSrcollClassName` : (默认 [ ]) 禁止触发滚动的元素类名
++ `lastBar`: (默认 false) 页面是否显示最后一个单独高度版块(滚动距离会自动计算))
 
 ## 参数
 + `activeIndex` : 当前页面的索引
@@ -37,4 +37,20 @@ fullpage.init()
 
 ```js
     fullpage.goTo(index)
+```
+
+### fullpage.fullScrollDisable(disable)
+
+页面是否禁用全屏滚动能力(disable => true: 禁用全屏滚动 || false: 启用全屏滚动)
+
+```js
+    fullpage.fullScrollDisable(true)
+```
+
+### fullpage.bodyScrollable(able)
+
+页面滚动条滚动能力(able => true : 显示滚动条 || false : 隐藏滚动条)
+
+```js
+    fullpage.bodyScrollable(false)
 ```

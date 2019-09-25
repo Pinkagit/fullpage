@@ -5,6 +5,7 @@ class FullPage {
             containerClassName: ".fullpage-container",
             pageClassName: ".fullpage",
             delay: 600,
+            lastBar: false,     // 页面是否显示最后一个单独高度版块
             disableSrcollClassName: []  // 禁止触发滚动的元素类名
         }
         this.options = Object.assign(defaultOptions, options)      // 合并自定义配置
@@ -13,9 +14,12 @@ class FullPage {
         this.pagesNum = document.querySelectorAll(`${this.options.containerClassName}>${this.options.pageClassName}`).length       // 计算page页数
         this.viewHeight = document.documentElement.clientHeight                                 // 计算浏览器可视区域高度
         this.delay = this.options.delay     // 截流和防抖函数的延迟时间
-        this.translateDis = 0,      // 元素偏移距离
-        this.scrollDisable = false     // 禁止滚动
+        this.translateDis = 0      // 元素偏移距离
+        this.scrollDisable = false     // 禁止全屏滚动
         this.disableSrcollClassName = this.options.disableSrcollClassName
+        this.lastBar = this.options.lastBar
+        this.lastHeight = this.lastBar ? document.querySelector(`${this.options.pageClassName}:last-child`).offsetHeight : 0   // 最后页面的高度
+        this.scrollable = false     // 页面是否能滚动条滚动
     }
     // 原型方法
     debounce(method, context, delay) {       // 防抖动函数，method 回调函数， context 上下文, delay 延迟时间
@@ -96,9 +100,13 @@ class FullPage {
         if (-this.translateDis <= this.viewHeight * (this.pagesNum - 2)) {
             this.containerDom.style.transition = "all 0.6s ease-in-out";
             this.activeIndex += 1
-            this.translateDis -= this.viewHeight
-            this.containerDom.style.transform = `translateY(${this.translateDis}px)`
 
+            if(this.lastBar && this.pagesNum == this.activeIndex) {
+                this.translateDis -= this.lastHeight
+            } else {
+                this.translateDis -= this.viewHeight
+            }
+            this.containerDom.style.transform = `translate3d(0, ${this.translateDis}px, 0)`
             // this.ofsetBgPosition()
         }
     }
@@ -107,9 +115,13 @@ class FullPage {
             
             this.containerDom.style.transition = "all 0.6s ease-in-out";
             this.activeIndex -= 1
-            this.translateDis += this.viewHeight
-            this.containerDom.style.transform = `translateY(${this.translateDis}px)`
 
+            if(this.lastBar && this.pagesNum == this.activeIndex+1) {
+                this.translateDis += this.lastHeight
+            } else {
+                this.translateDis += this.viewHeight
+            }
+            this.containerDom.style.transform = `translate3d(0, ${this.translateDis}px, 0)`
             // this.ofsetBgPosition()
         }
     }
@@ -117,8 +129,13 @@ class FullPage {
         this.containerDom.style.transition = "none";
         this.viewHeight = document.documentElement.clientHeight;
         this.containerDom.style.height = this.viewHeight + "px"
-        this.translateDis = -this.viewHeight * (this.activeIndex - 1)
-        this.containerDom.style.transform = `translateY(${this.translateDis}px)`
+
+        if(this.lastBar && this.pagesNum == this.activeIndex) {
+            this.translateDis = -this.viewHeight * (this.activeIndex - 2) - this.lastHeight
+        } else {
+            this.translateDis = -this.viewHeight * (this.activeIndex - 1)
+        }
+        this.containerDom.style.transform = `translate3d(0, ${this.translateDis}px, 0)`
     }
     addScrollMouseEvent() {
         if (navigator.userAgent.toLowerCase().indexOf("firefox") === -1) {      // 鼠标滚轮监听，火狐鼠标滚动事件不同其他
@@ -133,7 +150,9 @@ class FullPage {
         })
         document.addEventListener("touchend", this.throttle(this.touchEnd, this, this.delay))
         document.addEventListener("touchmove", event => {        // 阻止 touchmove 下拉刷新
-            event.preventDefault()
+            if(!this.scrollable)  {
+                event.preventDefault()
+            }
         }, { passive: false })
     }
     addResizeEvent() {
@@ -152,15 +171,29 @@ class FullPage {
     addStyle() {        // 添加初始样式
         document.body.style.overflowY = 'hidden';       // 隐藏body滚动条
         this.containerDom.style.position = 'relative';
+        this.containerDom.style.zIndex = '999';
         this.containerDom.style.height = this.viewHeight + "px"     // 初始给容器高度
         this.containerDom.style.transition = "all 0.6s ease-in-out";
     }
-    goTo(index) {
+    goTo(index) {       // 跳转到指定页面
         this.containerDom.style.transition = "all 0.6s ease-in-out";
         this.activeIndex = index;
         this.translateDis = -this.viewHeight*(this.activeIndex-1);
-        this.containerDom.style.transform = `translateY(${this.translateDis}px)`
+        this.containerDom.style.transform = `translate3d(0, ${this.translateDis}px, 0)`
     }
+    bodyScrollable(able) {      // 页面滚动条滚动能力
+        if(able) {
+            document.body.style.overflowY = 'auto';       // 显示body滚动条
+            this.scrollable = true;
+        } else {
+            document.body.style.overflowY = 'hidden';       // 隐藏body滚动条
+            this.scrollable = false;
+        }
+    }
+    fullScrollDisable(disable) {       // 页面禁止全屏滚动能力
+        this.scrollDisable = disable
+    }
+
     // 初始化函数
     init() {
         this.addStyle()

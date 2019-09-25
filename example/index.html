@@ -35,6 +35,12 @@
                 background: url("https://hbimg.huabanimg.com/4d0628cb2203d298cde597b15b9ad911eb1ddb2b119a6-KS25T2_fw658") no-repeat center;
                 background-size: cover;
             }
+            .bkx:nth-of-type(4) {
+                background: #000;
+                height: 200px;
+                border-bottom: 200px solid lightskyblue;
+                padding-top: 50px;
+            }
         </style>
     </head>
     <body>
@@ -42,6 +48,7 @@
             <div class="bkx 1 test"></div>
             <div class="bkx 2"></div>
             <div class="bkx 3"></div>
+            <div class="bkx 4"></div>
         </div>
         
         <script src="./fullpage.js"></script>
@@ -49,10 +56,13 @@
             var fullpage = new FullPage({
                 containerClassName: ".bbox",
                 pageClassName: ".bkx",
+                lastBar: true
                 // disableSrcollClassName: ['test']
             })
             fullpage.init()
             console.log(fullpage)
+            // fullpage.fullScrollDisable(true)
+            fullpage.bodyScrollable(false)
         </script>
     </body>
 </html>
