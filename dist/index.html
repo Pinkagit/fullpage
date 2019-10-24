@@ -37,9 +37,14 @@
             }
             .bkx:nth-of-type(4) {
                 background: #000;
-                height: 200px;
-                border-bottom: 200px solid lightskyblue;
-                padding-top: 50px;
+                height: auto;
+                /* border-bottom: 200px solid lightskyblue; */
+                overflow: hidden;
+            }
+            .bkx:nth-of-type(4) > img {
+                display: block;
+                width: 50%;
+                margin-bottom: 200px;
             }
         </style>
     </head>
@@ -48,7 +53,9 @@
             <div class="bkx 1 test"></div>
             <div class="bkx 2"></div>
             <div class="bkx 3"></div>
-            <div class="bkx 4"></div>
+            <div class="bkx 4">
+                <img src="https://ak.hypergryph.com/upload/images/20190228/b34a3c09433537cc444650dabc1662ea.jpg" alt="">
+            </div>
         </div>
         
         <script src="./fullpage.js"></script>

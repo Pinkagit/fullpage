@@ -102,6 +102,7 @@ class FullPage {
             this.activeIndex += 1
 
             if(this.lastBar && this.pagesNum == this.activeIndex) {
+                this.lastHeight = document.querySelector(`${this.options.pageClassName}:last-child`).offsetHeight    // 计算最后一个版块高度
                 this.translateDis -= this.lastHeight
             } else {
                 this.translateDis -= this.viewHeight
@@ -129,6 +130,10 @@ class FullPage {
         this.containerDom.style.transition = "none";
         this.viewHeight = document.documentElement.clientHeight;
         this.containerDom.style.height = this.viewHeight + "px"
+
+        if(this.lastBar) {      // 计算最后一个版块高度
+            this.lastHeight = document.querySelector(`${this.options.pageClassName}:last-child`).offsetHeight
+        }
 
         if(this.lastBar && this.pagesNum == this.activeIndex) {
             this.translateDis = -this.viewHeight * (this.activeIndex - 2) - this.lastHeight
