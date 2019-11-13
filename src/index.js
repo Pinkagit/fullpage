@@ -201,6 +201,7 @@ class FullPage {
 
     // 初始化函数
     init() {
+        window.history.scrollRestoration && (window.history.scrollRestoration = 'manual');    // 取消浏览器历史导航记录页面滚动位置
         this.addStyle()
         this.addScrollMouseEvent()
         this.addTouchMoveEvent()
