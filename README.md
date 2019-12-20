@@ -54,3 +54,18 @@ fullpage.init()
 ```js
     fullpage.bodyScrollable(false)
 ```
+
+## 常见问题
+
++ Q : vue-router 跳转页面后，返回fullpage页面，页面发生滚动偏移
+
+  A : 在路由导航内，设置滚动位置
+     ```js
+        scrollBehavior (to, from, savedPosition) {
+            if (savedPosition) {
+                return savedPosition
+            } else {
+                return { x: 0, y: 0 }
+            }
+        }
+     ```
