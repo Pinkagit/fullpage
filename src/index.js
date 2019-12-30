@@ -182,7 +182,7 @@ class FullPage {
     }
     goTo(index) {       // 跳转到指定页面
         this.containerDom.style.transition = "all 0.6s ease-in-out";
-        this.activeIndex = index;
+        this.activeIndex = parseInt(index);
         this.translateDis = -this.viewHeight*(this.activeIndex-1);
         this.containerDom.style.transform = `translate3d(0, ${this.translateDis}px, 0)`
     }
