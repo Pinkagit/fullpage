@@ -57,7 +57,7 @@ fullpage.init()
 
 ### fullpage.beforeScroll = function(dir, next) {}
 
-页面触发滚动前钩子函数(dur => goUp：向上滚动 || goDown：向下滚动， next: 触发滚动)
+页面触发滚动前钩子函数(dir => goUp：向上滚动 || goDown：向下滚动， next: 触发滚动)
 
 ```js
     fullpage.beforeScroll = function(dir, next) {
