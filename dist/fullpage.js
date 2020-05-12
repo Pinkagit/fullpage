@@ -73,7 +73,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/
 /******/ 	var hotApplyOnUpdate = true;
 /******/ 	// eslint-disable-next-line no-unused-vars
-/******/ 	var hotCurrentHash = "10fa4d7cdff0ba61ef28";
+/******/ 	var hotCurrentHash = "a97e4e096e4cc28f46b7";
 /******/ 	var hotRequestTimeout = 10000;
 /******/ 	var hotCurrentModuleData = {};
 /******/ 	var hotCurrentChildModule;
@@ -166,6 +166,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 			_declinedDependencies: {},
 /******/ 			_selfAccepted: false,
 /******/ 			_selfDeclined: false,
+/******/ 			_selfInvalidated: false,
 /******/ 			_disposeHandlers: [],
 /******/ 			_main: hotCurrentChildModule !== moduleId,
 /******/
@@ -195,6 +196,29 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 			removeDisposeHandler: function(callback) {
 /******/ 				var idx = hot._disposeHandlers.indexOf(callback);
 /******/ 				if (idx >= 0) hot._disposeHandlers.splice(idx, 1);
+/******/ 			},
+/******/ 			invalidate: function() {
+/******/ 				this._selfInvalidated = true;
+/******/ 				switch (hotStatus) {
+/******/ 					case "idle":
+/******/ 						hotUpdate = {};
+/******/ 						hotUpdate[moduleId] = modules[moduleId];
+/******/ 						hotSetStatus("ready");
+/******/ 						break;
+/******/ 					case "ready":
+/******/ 						hotApplyInvalidatedModule(moduleId);
+/******/ 						break;
+/******/ 					case "prepare":
+/******/ 					case "check":
+/******/ 					case "dispose":
+/******/ 					case "apply":
+/******/ 						(hotQueuedInvalidatedModules =
+/******/ 							hotQueuedInvalidatedModules || []).push(moduleId);
+/******/ 						break;
+/******/ 					default:
+/******/ 						// ignore requests in error states
+/******/ 						break;
+/******/ 				}
 /******/ 			},
 /******/
 /******/ 			// Management API
@@ -237,7 +261,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 	var hotDeferred;
 /******/
 /******/ 	// The update info
-/******/ 	var hotUpdate, hotUpdateNewHash;
+/******/ 	var hotUpdate, hotUpdateNewHash, hotQueuedInvalidatedModules;
 /******/
 /******/ 	function toModuleId(id) {
 /******/ 		var isNumber = +id + "" === id;
@@ -252,7 +276,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 		hotSetStatus("check");
 /******/ 		return hotDownloadManifest(hotRequestTimeout).then(function(update) {
 /******/ 			if (!update) {
-/******/ 				hotSetStatus("idle");
+/******/ 				hotSetStatus(hotApplyInvalidatedModules() ? "ready" : "idle");
 /******/ 				return null;
 /******/ 			}
 /******/ 			hotRequestedFilesMap = {};
@@ -271,7 +295,6 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 			var chunkId = "main";
 /******/ 			// eslint-disable-next-line no-lone-blocks
 /******/ 			{
-/******/ 				/*globals chunkId */
 /******/ 				hotEnsureUpdateChunk(chunkId);
 /******/ 			}
 /******/ 			if (
@@ -346,6 +369,11 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 		if (hotStatus !== "ready")
 /******/ 			throw new Error("apply() is only allowed in ready status");
 /******/ 		options = options || {};
+/******/ 		return hotApplyInternal(options);
+/******/ 	}
+/******/
+/******/ 	function hotApplyInternal(options) {
+/******/ 		hotApplyInvalidatedModules();
 /******/
 /******/ 		var cb;
 /******/ 		var i;
@@ -368,7 +396,11 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 				var moduleId = queueItem.id;
 /******/ 				var chain = queueItem.chain;
 /******/ 				module = installedModules[moduleId];
-/******/ 				if (!module || module.hot._selfAccepted) continue;
+/******/ 				if (
+/******/ 					!module ||
+/******/ 					(module.hot._selfAccepted && !module.hot._selfInvalidated)
+/******/ 				)
+/******/ 					continue;
 /******/ 				if (module.hot._selfDeclined) {
 /******/ 					return {
 /******/ 						type: "self-declined",
@@ -536,10 +568,13 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 				installedModules[moduleId] &&
 /******/ 				installedModules[moduleId].hot._selfAccepted &&
 /******/ 				// removed self-accepted modules should not be required
-/******/ 				appliedUpdate[moduleId] !== warnUnexpectedRequire
+/******/ 				appliedUpdate[moduleId] !== warnUnexpectedRequire &&
+/******/ 				// when called invalidate self-accepting is not possible
+/******/ 				!installedModules[moduleId].hot._selfInvalidated
 /******/ 			) {
 /******/ 				outdatedSelfAcceptedModules.push({
 /******/ 					module: moduleId,
+/******/ 					parents: installedModules[moduleId].parents.slice(),
 /******/ 					errorHandler: installedModules[moduleId].hot._selfAccepted
 /******/ 				});
 /******/ 			}
@@ -612,7 +647,11 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 		// Now in "apply" phase
 /******/ 		hotSetStatus("apply");
 /******/
-/******/ 		hotCurrentHash = hotUpdateNewHash;
+/******/ 		if (hotUpdateNewHash !== undefined) {
+/******/ 			hotCurrentHash = hotUpdateNewHash;
+/******/ 			hotUpdateNewHash = undefined;
+/******/ 		}
+/******/ 		hotUpdate = undefined;
 /******/
 /******/ 		// insert new code
 /******/ 		for (moduleId in appliedUpdate) {
@@ -665,7 +704,8 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 		for (i = 0; i < outdatedSelfAcceptedModules.length; i++) {
 /******/ 			var item = outdatedSelfAcceptedModules[i];
 /******/ 			moduleId = item.module;
-/******/ 			hotCurrentParents = [moduleId];
+/******/ 			hotCurrentParents = item.parents;
+/******/ 			hotCurrentChildModule = moduleId;
 /******/ 			try {
 /******/ 				__webpack_require__(moduleId);
 /******/ 			} catch (err) {
@@ -707,10 +747,33 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 			return Promise.reject(error);
 /******/ 		}
 /******/
+/******/ 		if (hotQueuedInvalidatedModules) {
+/******/ 			return hotApplyInternal(options).then(function(list) {
+/******/ 				outdatedModules.forEach(function(moduleId) {
+/******/ 					if (list.indexOf(moduleId) < 0) list.push(moduleId);
+/******/ 				});
+/******/ 				return list;
+/******/ 			});
+/******/ 		}
+/******/
 /******/ 		hotSetStatus("idle");
 /******/ 		return new Promise(function(resolve) {
 /******/ 			resolve(outdatedModules);
 /******/ 		});
+/******/ 	}
+/******/
+/******/ 	function hotApplyInvalidatedModules() {
+/******/ 		if (hotQueuedInvalidatedModules) {
+/******/ 			if (!hotUpdate) hotUpdate = {};
+/******/ 			hotQueuedInvalidatedModules.forEach(hotApplyInvalidatedModule);
+/******/ 			hotQueuedInvalidatedModules = undefined;
+/******/ 			return true;
+/******/ 		}
+/******/ 	}
+/******/
+/******/ 	function hotApplyInvalidatedModule(moduleId) {
+/******/ 		if (!Object.prototype.hasOwnProperty.call(hotUpdate, moduleId))
+/******/ 			hotUpdate[moduleId] = modules[moduleId];
 /******/ 	}
 /******/
 /******/ 	// The module cache
@@ -857,7 +920,7 @@ eval("var toString = {}.toString;\n\nmodule.exports = function (it) {\n  return 
 /*! no static exports found */
 /***/ (function(module, exports) {
 
-eval("var core = module.exports = { version: '2.6.9' };\nif (typeof __e == 'number') __e = core; // eslint-disable-line no-undef\n\n\n//# sourceURL=webpack://FullPage/./node_modules/core-js/modules/_core.js?");
+eval("var core = module.exports = { version: '2.6.11' };\nif (typeof __e == 'number') __e = core; // eslint-disable-line no-undef\n\n\n//# sourceURL=webpack://FullPage/./node_modules/core-js/modules/_core.js?");
 
 /***/ }),
 
@@ -1233,7 +1296,7 @@ eval("// 19.1.3.1 Object.assign(target, source)\nvar $export = __webpack_require
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
-eval("__webpack_require__.r(__webpack_exports__);\n/* harmony import */ var core_js_modules_es6_object_assign__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! core-js/modules/es6.object.assign */ \"./node_modules/core-js/modules/es6.object.assign.js\");\n/* harmony import */ var core_js_modules_es6_object_assign__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(core_js_modules_es6_object_assign__WEBPACK_IMPORTED_MODULE_0__);\n\n\nfunction _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError(\"Cannot call a class as a function\"); } }\n\nfunction _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if (\"value\" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }\n\nfunction _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }\n\nvar FullPage =\n/*#__PURE__*/\nfunction () {\n  // 构造函数\n  function FullPage(options) {\n    _classCallCheck(this, FullPage);\n\n    var defaultOptions = {\n      // 默认配置\n      containerClassName: \".fullpage-container\",\n      pageClassName: \".fullpage\",\n      delay: 600,\n      lastBar: false,\n      // 页面是否显示最后一个单独高度版块\n      disableSrcollClassName: [] // 禁止触发滚动的元素类名\n\n    };\n    this.options = Object.assign(defaultOptions, options); // 合并自定义配置\n\n    this.activeIndex = 1; // 当前展示的页面序号\n\n    this.containerDom = document.querySelector(\"\".concat(this.options.containerClassName)); // 容器dom\n\n    this.pagesNum = document.querySelectorAll(\"\".concat(this.options.containerClassName, \">\").concat(this.options.pageClassName)).length; // 计算page页数\n\n    this.viewHeight = document.documentElement.clientHeight; // 计算浏览器可视区域高度\n\n    this.delay = this.options.delay; // 截流和防抖函数的延迟时间\n\n    this.translateDis = 0; // 元素偏移距离\n\n    this.scrollDisable = false; // 禁止全屏滚动\n\n    this.disableSrcollClassName = this.options.disableSrcollClassName;\n    this.lastBar = this.options.lastBar;\n    this.lastHeight = this.lastBar ? document.querySelector(\"\".concat(this.options.pageClassName, \":last-child\")).offsetHeight : 0; // 最后页面的高度\n\n    this.scrollable = false; // 页面是否能滚动条滚动\n  } // 原型方法\n\n\n  _createClass(FullPage, [{\n    key: \"debounce\",\n    value: function debounce(method, context, delay) {\n      // 防抖动函数，method 回调函数， context 上下文, delay 延迟时间\n      var timer;\n      return function () {\n        var _arguments = arguments;\n        clearTimeout(timer);\n        timer = setTimeout(function () {\n          method.apply(context, _arguments);\n        }, delay);\n      };\n    }\n  }, {\n    key: \"throttle\",\n    value: function throttle(method, context, delay) {\n      // 截流函数，method 回调函数，context 上下文, delay 延迟时间\n      var wait = false;\n      return function () {\n        if (!wait) {\n          method.apply(context, arguments);\n          wait = true;\n          setTimeout(function () {\n            wait = false;\n          }, delay); // TODO: 截流延迟时间要大于containerDom的transition-duration + transition-delay\n        }\n      };\n    }\n  }, {\n    key: \"getWheelDelta\",\n    value: function getWheelDelta(event) {\n      // 判断滚轮滚动方向\n      event = event || window.event;\n\n      if (event.wheelDelta) {\n        this.getWheelDelta = function (event) {\n          return event.wheelDelta;\n        }; // 第一次调用后惰性载入，之后无需再做检测\n\n\n        return event.wheelDelta;\n      } else {\n        // 兼容火狐\n        this.getWheelDelta = function (event) {\n          return -event.detail;\n        };\n\n        return -event.detail;\n      }\n    }\n  }, {\n    key: \"scrollMouse\",\n    value: function scrollMouse(event) {\n      for (var i = 0, len = this.disableSrcollClassName.length; i < len; i++) {\n        var disClassName = this.disableSrcollClassName[i];\n\n        if (event.target.className.indexOf(disClassName) !== -1) {\n          // 根据触发元素类名禁用滚动\n          return false;\n        }\n      }\n\n      if (this.scrollDisable) {\n        // 根据参数禁用滚动\n        return false;\n      }\n\n      var delta = this.getWheelDelta(event);\n\n      if (delta < 0) {\n        // delta < 0，页面向下滚动\n        this.goDown();\n      } else {\n        this.goUp();\n      }\n    }\n  }, {\n    key: \"touchEnd\",\n    value: function touchEnd(event) {\n      for (var i = 0, len = this.disableSrcollClassName.length; i < len; i++) {\n        var disClassName = this.disableSrcollClassName[i];\n\n        if (event.target.className.indexOf(disClassName) !== -1) {\n          // 根据触发元素类名禁用滚动\n          return false;\n        }\n      }\n\n      if (this.scrollDisable) {\n        // 根据参数禁用滚动\n        return false;\n      }\n\n      this.endY = event.changedTouches[0].pageY;\n\n      if (Math.abs(this.endY - this.startY) <= 50) {\n        // 滑动太短\n        return false;\n      }\n\n      if (this.endY - this.startY < 0) {\n        // 手指向上滑动，对应页面向下滚动\n        this.goDown();\n      } else if (this.endY - this.startY > 0) {\n        // 手指向下滑动，对应页面向上滚动\n        this.goUp();\n      }\n    }\n  }, {\n    key: \"goDown\",\n    value: function goDown() {\n      if (-this.translateDis <= this.viewHeight * (this.pagesNum - 2)) {\n        this.containerDom.style.transition = \"all 0.6s ease-in-out\";\n        this.activeIndex += 1;\n\n        if (this.lastBar && this.pagesNum == this.activeIndex) {\n          this.lastHeight = document.querySelector(\"\".concat(this.options.pageClassName, \":last-child\")).offsetHeight; // 计算最后一个版块高度\n\n          this.translateDis -= this.lastHeight;\n        } else {\n          this.translateDis -= this.viewHeight;\n        }\n\n        this.containerDom.style.transform = \"translate3d(0, \".concat(this.translateDis, \"px, 0)\"); // this.ofsetBgPosition()\n      }\n    }\n  }, {\n    key: \"goUp\",\n    value: function goUp() {\n      if (-this.translateDis >= this.viewHeight) {\n        this.containerDom.style.transition = \"all 0.6s ease-in-out\";\n        this.activeIndex -= 1;\n\n        if (this.lastBar && this.pagesNum == this.activeIndex + 1) {\n          this.translateDis += this.lastHeight;\n        } else {\n          this.translateDis += this.viewHeight;\n        }\n\n        this.containerDom.style.transform = \"translate3d(0, \".concat(this.translateDis, \"px, 0)\"); // this.ofsetBgPosition()\n      }\n    }\n  }, {\n    key: \"resizeEvent\",\n    value: function resizeEvent() {\n      this.containerDom.style.transition = \"none\";\n      this.viewHeight = document.documentElement.clientHeight;\n      this.containerDom.style.height = this.viewHeight + \"px\";\n\n      if (this.lastBar) {\n        // 计算最后一个版块高度\n        this.lastHeight = document.querySelector(\"\".concat(this.options.pageClassName, \":last-child\")).offsetHeight;\n      }\n\n      if (this.lastBar && this.pagesNum == this.activeIndex) {\n        this.translateDis = -this.viewHeight * (this.activeIndex - 2) - this.lastHeight;\n      } else {\n        this.translateDis = -this.viewHeight * (this.activeIndex - 1);\n      }\n\n      this.containerDom.style.transform = \"translate3d(0, \".concat(this.translateDis, \"px, 0)\");\n    }\n  }, {\n    key: \"addScrollMouseEvent\",\n    value: function addScrollMouseEvent() {\n      if (navigator.userAgent.toLowerCase().indexOf(\"firefox\") === -1) {\n        // 鼠标滚轮监听，火狐鼠标滚动事件不同其他\n        document.addEventListener(\"mousewheel\", this.throttle(this.scrollMouse, this, this.delay));\n      } else {\n        document.addEventListener(\"DOMMouseScroll\", this.throttle(this.scrollMouse, this, this.delay));\n      }\n    }\n  }, {\n    key: \"addTouchMoveEvent\",\n    value: function addTouchMoveEvent() {\n      var _this = this;\n\n      document.addEventListener(\"touchstart\", function (event) {\n        _this.startY = event.touches[0].pageY;\n      });\n      document.addEventListener(\"touchend\", this.throttle(this.touchEnd, this, this.delay));\n      document.addEventListener(\"touchmove\", function (event) {\n        // 阻止 touchmove 下拉刷新\n        if (!_this.scrollable) {\n          event.preventDefault();\n        }\n      }, {\n        passive: false\n      });\n    }\n  }, {\n    key: \"addResizeEvent\",\n    value: function addResizeEvent() {\n      window.addEventListener(\"resize\", this.debounce(this.resizeEvent, this, 0)); // 浏览器窗口大小改变时\n    }\n  }, {\n    key: \"ofsetBgPosition\",\n    value: function ofsetBgPosition() {\n      // 给页面添加背景定位偏移\n      for (var i = 0, len = this.containerDom.children.length; i < len; i++) {\n        var pageDom = this.containerDom.children[i];\n\n        if (this.activeIndex - 1 === i) {\n          pageDom.style.backgroundPosition = \"center center\";\n        } else {\n          pageDom.style.backgroundPosition = \"center \".concat(this.viewHeight / 10 * (i - (this.activeIndex - 1)), \"px\");\n        }\n      }\n    }\n  }, {\n    key: \"addStyle\",\n    value: function addStyle() {\n      // 添加初始样式\n      document.body.style.overflowY = 'hidden'; // 隐藏body滚动条\n\n      this.containerDom.style.position = 'relative';\n      this.containerDom.style.zIndex = '999';\n      this.containerDom.style.height = this.viewHeight + \"px\"; // 初始给容器高度\n\n      this.containerDom.style.transition = \"all 0.6s ease-in-out\";\n    }\n  }, {\n    key: \"goTo\",\n    value: function goTo(index) {\n      // 跳转到指定页面\n      this.containerDom.style.transition = \"all 0.6s ease-in-out\";\n      this.activeIndex = parseInt(index);\n      this.translateDis = -this.viewHeight * (this.activeIndex - 1);\n      this.containerDom.style.transform = \"translate3d(0, \".concat(this.translateDis, \"px, 0)\");\n    }\n  }, {\n    key: \"bodyScrollable\",\n    value: function bodyScrollable(able) {\n      // 页面滚动条滚动能力\n      if (able) {\n        document.body.style.overflowY = 'auto'; // 显示body滚动条\n\n        this.scrollable = true;\n      } else {\n        document.body.style.overflowY = 'hidden'; // 隐藏body滚动条\n\n        this.scrollable = false;\n      }\n    }\n  }, {\n    key: \"fullScrollDisable\",\n    value: function fullScrollDisable(disable) {\n      // 页面禁止全屏滚动能力\n      this.scrollDisable = disable;\n    } // 初始化函数\n\n  }, {\n    key: \"init\",\n    value: function init() {\n      window.history.scrollRestoration && (window.history.scrollRestoration = 'manual'); // 取消浏览器历史导航记录页面滚动位置\n\n      this.addStyle();\n      this.addScrollMouseEvent();\n      this.addTouchMoveEvent();\n      this.addResizeEvent();\n    }\n  }]);\n\n  return FullPage;\n}();\n\n/* harmony default export */ __webpack_exports__[\"default\"] = (FullPage);\n\n//# sourceURL=webpack://FullPage/./src/index.js?");
+eval("__webpack_require__.r(__webpack_exports__);\n/* harmony import */ var core_js_modules_es6_object_assign__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! core-js/modules/es6.object.assign */ \"./node_modules/core-js/modules/es6.object.assign.js\");\n/* harmony import */ var core_js_modules_es6_object_assign__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(core_js_modules_es6_object_assign__WEBPACK_IMPORTED_MODULE_0__);\n\n\nfunction _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError(\"Cannot call a class as a function\"); } }\n\nfunction _defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if (\"value\" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } }\n\nfunction _createClass(Constructor, protoProps, staticProps) { if (protoProps) _defineProperties(Constructor.prototype, protoProps); if (staticProps) _defineProperties(Constructor, staticProps); return Constructor; }\n\nvar FullPage = /*#__PURE__*/function () {\n  // 构造函数\n  function FullPage(options) {\n    _classCallCheck(this, FullPage);\n\n    var defaultOptions = {\n      // 默认配置\n      containerClassName: \".fullpage-container\",\n      pageClassName: \".fullpage\",\n      delay: 600,\n      lastBar: false,\n      // 页面是否显示最后一个单独高度版块\n      disableSrcollClassName: [] // 禁止触发滚动的元素类名\n\n    };\n    this.options = Object.assign(defaultOptions, options); // 合并自定义配置\n\n    this.activeIndex = 1; // 当前展示的页面序号\n\n    this.containerDom = document.querySelector(\"\".concat(this.options.containerClassName)); // 容器dom\n\n    this.pagesNum = document.querySelectorAll(\"\".concat(this.options.containerClassName, \">\").concat(this.options.pageClassName)).length; // 计算page页数\n\n    this.viewHeight = document.documentElement.clientHeight; // 计算浏览器可视区域高度\n\n    this.delay = this.options.delay; // 截流和防抖函数的延迟时间\n\n    this.translateDis = 0; // 元素偏移距离\n\n    this.scrollDisable = false; // 禁止全屏滚动\n\n    this.disableSrcollClassName = this.options.disableSrcollClassName;\n    this.lastBar = this.options.lastBar;\n    this.lastHeight = this.lastBar ? document.querySelector(\"\".concat(this.options.pageClassName, \":last-child\")).offsetHeight : 0; // 最后页面的高度\n\n    this.scrollable = false; // 页面是否能滚动条滚动\n  } // 原型方法\n\n\n  _createClass(FullPage, [{\n    key: \"debounce\",\n    value: function debounce(method, context, delay) {\n      // 防抖动函数，method 回调函数， context 上下文, delay 延迟时间\n      var timer;\n      return function () {\n        var _arguments = arguments;\n        clearTimeout(timer);\n        timer = setTimeout(function () {\n          method.apply(context, _arguments);\n        }, delay);\n      };\n    }\n  }, {\n    key: \"throttle\",\n    value: function throttle(method, context, delay) {\n      // 截流函数，method 回调函数，context 上下文, delay 延迟时间\n      var wait = false;\n      return function () {\n        if (!wait) {\n          method.apply(context, arguments);\n          wait = true;\n          setTimeout(function () {\n            wait = false;\n          }, delay); // TODO: 截流延迟时间要大于containerDom的transition-duration + transition-delay\n        }\n      };\n    }\n  }, {\n    key: \"getWheelDelta\",\n    value: function getWheelDelta(event) {\n      // 判断滚轮滚动方向\n      event = event || window.event;\n\n      if (event.wheelDelta) {\n        this.getWheelDelta = function (event) {\n          return event.wheelDelta;\n        }; // 第一次调用后惰性载入，之后无需再做检测\n\n\n        return event.wheelDelta;\n      } else {\n        // 兼容火狐\n        this.getWheelDelta = function (event) {\n          return -event.detail;\n        };\n\n        return -event.detail;\n      }\n    }\n  }, {\n    key: \"scrollMouse\",\n    value: function scrollMouse(event) {\n      for (var i = 0, len = this.disableSrcollClassName.length; i < len; i++) {\n        var disClassName = this.disableSrcollClassName[i];\n\n        if (event.target.className.indexOf(disClassName) !== -1) {\n          // 根据触发元素类名禁用滚动\n          return false;\n        }\n      }\n\n      if (this.scrollDisable) {\n        // 根据参数禁用滚动\n        return false;\n      }\n\n      var delta = this.getWheelDelta(event);\n\n      if (delta < 0) {\n        // delta < 0，页面向下滚动\n        this.beforeScroll(\"goDown\", this.goDown.bind(this));\n      } else {\n        this.beforeScroll(\"goUp\", this.goUp.bind(this));\n      }\n    }\n  }, {\n    key: \"beforeScroll\",\n    value: function beforeScroll(dir, next) {// scroll前钩子函数\n    }\n  }, {\n    key: \"touchEnd\",\n    value: function touchEnd(event) {\n      for (var i = 0, len = this.disableSrcollClassName.length; i < len; i++) {\n        var disClassName = this.disableSrcollClassName[i];\n\n        if (event.target.className.indexOf(disClassName) !== -1) {\n          // 根据触发元素类名禁用滚动\n          return false;\n        }\n      }\n\n      if (this.scrollDisable) {\n        // 根据参数禁用滚动\n        return false;\n      }\n\n      this.endY = event.changedTouches[0].pageY;\n\n      if (Math.abs(this.endY - this.startY) <= 50) {\n        // 滑动太短\n        return false;\n      }\n\n      if (this.endY - this.startY < 0) {\n        // 手指向上滑动，对应页面向下滚动\n        this.beforeScroll(\"goDown\", this.goDown.bind(this));\n      } else if (this.endY - this.startY > 0) {\n        // 手指向下滑动，对应页面向上滚动\n        this.beforeScroll(\"goUp\", this.goUp.bind(this));\n      }\n    }\n  }, {\n    key: \"goDown\",\n    value: function goDown() {\n      if (-this.translateDis <= this.viewHeight * (this.pagesNum - 2)) {\n        this.containerDom.style.transition = \"all 0.6s ease-in-out\";\n        this.activeIndex += 1;\n\n        if (this.lastBar && this.pagesNum == this.activeIndex) {\n          this.lastHeight = document.querySelector(\"\".concat(this.options.pageClassName, \":last-child\")).offsetHeight; // 计算最后一个版块高度\n\n          this.translateDis -= this.lastHeight;\n        } else {\n          this.translateDis -= this.viewHeight;\n        }\n\n        this.containerDom.style.transform = \"translate3d(0, \".concat(this.translateDis, \"px, 0)\"); // this.ofsetBgPosition()\n      }\n    }\n  }, {\n    key: \"goUp\",\n    value: function goUp() {\n      if (-this.translateDis >= this.viewHeight) {\n        this.containerDom.style.transition = \"all 0.6s ease-in-out\";\n        this.activeIndex -= 1;\n\n        if (this.lastBar && this.pagesNum == this.activeIndex + 1) {\n          this.translateDis += this.lastHeight;\n        } else {\n          this.translateDis += this.viewHeight;\n        }\n\n        this.containerDom.style.transform = \"translate3d(0, \".concat(this.translateDis, \"px, 0)\"); // this.ofsetBgPosition()\n      }\n    }\n  }, {\n    key: \"resizeEvent\",\n    value: function resizeEvent() {\n      this.containerDom.style.transition = \"none\";\n      this.viewHeight = document.documentElement.clientHeight;\n      this.containerDom.style.height = this.viewHeight + \"px\";\n\n      if (this.lastBar) {\n        // 计算最后一个版块高度\n        this.lastHeight = document.querySelector(\"\".concat(this.options.pageClassName, \":last-child\")).offsetHeight;\n      }\n\n      if (this.lastBar && this.pagesNum == this.activeIndex) {\n        this.translateDis = -this.viewHeight * (this.activeIndex - 2) - this.lastHeight;\n      } else {\n        this.translateDis = -this.viewHeight * (this.activeIndex - 1);\n      }\n\n      this.containerDom.style.transform = \"translate3d(0, \".concat(this.translateDis, \"px, 0)\");\n    }\n  }, {\n    key: \"addScrollMouseEvent\",\n    value: function addScrollMouseEvent() {\n      if (navigator.userAgent.toLowerCase().indexOf(\"firefox\") === -1) {\n        // 鼠标滚轮监听，火狐鼠标滚动事件不同其他\n        document.addEventListener(\"mousewheel\", this.throttle(this.scrollMouse, this, this.delay));\n      } else {\n        document.addEventListener(\"DOMMouseScroll\", this.throttle(this.scrollMouse, this, this.delay));\n      }\n    }\n  }, {\n    key: \"addTouchMoveEvent\",\n    value: function addTouchMoveEvent() {\n      var _this = this;\n\n      document.addEventListener(\"touchstart\", function (event) {\n        _this.startY = event.touches[0].pageY;\n      });\n      document.addEventListener(\"touchend\", this.throttle(this.touchEnd, this, this.delay));\n      document.addEventListener(\"touchmove\", function (event) {\n        // 阻止 touchmove 下拉刷新\n        if (!_this.scrollable) {\n          event.preventDefault();\n        }\n      }, {\n        passive: false\n      });\n    }\n  }, {\n    key: \"addResizeEvent\",\n    value: function addResizeEvent() {\n      window.addEventListener(\"resize\", this.debounce(this.resizeEvent, this, 0)); // 浏览器窗口大小改变时\n    }\n  }, {\n    key: \"ofsetBgPosition\",\n    value: function ofsetBgPosition() {\n      // 给页面添加背景定位偏移\n      for (var i = 0, len = this.containerDom.children.length; i < len; i++) {\n        var pageDom = this.containerDom.children[i];\n\n        if (this.activeIndex - 1 === i) {\n          pageDom.style.backgroundPosition = \"center center\";\n        } else {\n          pageDom.style.backgroundPosition = \"center \".concat(this.viewHeight / 10 * (i - (this.activeIndex - 1)), \"px\");\n        }\n      }\n    }\n  }, {\n    key: \"addStyle\",\n    value: function addStyle() {\n      // 添加初始样式\n      document.body.style.overflowY = 'hidden'; // 隐藏body滚动条\n\n      this.containerDom.style.position = 'relative';\n      this.containerDom.style.zIndex = '999';\n      this.containerDom.style.height = this.viewHeight + \"px\"; // 初始给容器高度\n\n      this.containerDom.style.transition = \"all 0.6s ease-in-out\";\n    }\n  }, {\n    key: \"goTo\",\n    value: function goTo(index) {\n      // 跳转到指定页面\n      this.containerDom.style.transition = \"all 0.6s ease-in-out\";\n      this.activeIndex = parseInt(index);\n      this.translateDis = -this.viewHeight * (this.activeIndex - 1);\n      this.containerDom.style.transform = \"translate3d(0, \".concat(this.translateDis, \"px, 0)\");\n    }\n  }, {\n    key: \"bodyScrollable\",\n    value: function bodyScrollable(able) {\n      // 页面滚动条滚动能力\n      if (able) {\n        document.body.style.overflowY = 'auto'; // 显示body滚动条\n\n        this.scrollable = true;\n      } else {\n        document.body.style.overflowY = 'hidden'; // 隐藏body滚动条\n\n        this.scrollable = false;\n      }\n    }\n  }, {\n    key: \"fullScrollDisable\",\n    value: function fullScrollDisable(disable) {\n      // 页面禁止全屏滚动能力\n      this.scrollDisable = disable;\n    } // 初始化函数\n\n  }, {\n    key: \"init\",\n    value: function init() {\n      window.history.scrollRestoration && (window.history.scrollRestoration = 'manual'); // 取消浏览器历史导航记录页面滚动位置\n\n      this.addStyle();\n      this.addScrollMouseEvent();\n      this.addTouchMoveEvent();\n      this.addResizeEvent();\n    }\n  }]);\n\n  return FullPage;\n}();\n\n/* harmony default export */ __webpack_exports__[\"default\"] = (FullPage);\n\n//# sourceURL=webpack://FullPage/./src/index.js?");
 
 /***/ })
 
