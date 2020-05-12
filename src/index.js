@@ -67,10 +67,12 @@ class FullPage {
         
         let delta = this.getWheelDelta(event)
         if (delta < 0) {        // delta < 0，页面向下滚动
-            this.goDown()
+            this.beforeScroll("goDown", this.goDown.bind(this))
         } else {
-            this.goUp()
+            this.beforeScroll("goUp", this.goUp.bind(this))
         }
+    }
+    beforeScroll(dir, next) {       // scroll前钩子函数
     }
     touchEnd(event) {
         for(let i = 0, len = this.disableSrcollClassName.length; i < len; i++) {
@@ -91,9 +93,9 @@ class FullPage {
         }
         
         if (this.endY - this.startY < 0) {      // 手指向上滑动，对应页面向下滚动
-            this.goDown()
+            this.beforeScroll("goDown", this.goDown.bind(this))
         } else if(this.endY - this.startY > 0) {        // 手指向下滑动，对应页面向上滚动
-            this.goUp()
+            this.beforeScroll("goUp", this.goUp.bind(this))
         }
     }
     goDown() {
