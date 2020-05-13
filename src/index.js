@@ -115,8 +115,7 @@ class FullPage {
         }
     }
     goUp() {
-        if (-this.translateDis >= this.viewHeight) {
-            
+        if (-this.translateDis > 0) {
             this.containerDom.style.transition = "all 0.6s ease-in-out";
             this.activeIndex -= 1
 
