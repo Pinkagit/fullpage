@@ -73,6 +73,7 @@ class FullPage {
         }
     }
     beforeScroll(dir, next) {       // scroll前钩子函数
+        next()
     }
     touchEnd(event) {
         for(let i = 0, len = this.disableSrcollClassName.length; i < len; i++) {
