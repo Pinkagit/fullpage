@@ -6,7 +6,7 @@ class FullPage {
             pageClassName: ".fullpage",
             delay: 600,
             lastBar: false,     // 页面是否显示最后一个单独高度版块
-            disableSrcollClassName: []  // 禁止触发滚动的元素类名
+            disableScrollDomName: []  // 禁止触发滚动的元素
         }
         this.options = Object.assign(defaultOptions, options)      // 合并自定义配置
         this.activeIndex = 1                                                                   // 当前展示的页面序号
@@ -16,7 +16,7 @@ class FullPage {
         this.delay = this.options.delay     // 截流和防抖函数的延迟时间
         this.translateDis = 0      // 元素偏移距离
         this.scrollDisable = false     // 禁止全屏滚动
-        this.disableSrcollClassName = this.options.disableSrcollClassName
+        this.disableScrollDomName = this.options.disableScrollDomName
         this.lastBar = this.options.lastBar
         this.lastHeight = this.lastBar ? document.querySelector(`${this.options.pageClassName}:last-child`).offsetHeight : 0   // 最后页面的高度
         this.scrollable = false     // 页面是否能滚动条滚动
@@ -54,11 +54,8 @@ class FullPage {
         }
     }
     scrollMouse(event) {
-        for(let i = 0, len = this.disableSrcollClassName.length; i < len; i++) {
-            let disClassName = this.disableSrcollClassName[i];
-            if(event.target.className.indexOf(disClassName) !== -1) {       // 根据触发元素类名禁用滚动
-                return false;
-            }
+        if(this.checkDisableScroll(event)) {   // 根据触发元素类名禁用滚动
+            return false
         }
         
         if(this.scrollDisable) {        // 根据参数禁用滚动
@@ -76,11 +73,8 @@ class FullPage {
         next()
     }
     touchEnd(event) {
-        for(let i = 0, len = this.disableSrcollClassName.length; i < len; i++) {
-            let disClassName = this.disableSrcollClassName[i];
-            if(event.target.className.indexOf(disClassName) !== -1) {       // 根据触发元素类名禁用滚动
-                return false;
-            }
+        if(this.checkDisableScroll(event)) {   // 根据触发元素类名禁用滚动
+            return false
         }
         
         if(this.scrollDisable) {        // 根据参数禁用滚动
@@ -128,6 +122,16 @@ class FullPage {
             // this.ofsetBgPosition()
         }
     }
+    checkDisableScroll(event) {     // 根据触发元素类名禁用滚动
+        const path = event.path || (event.composedPath && event.composedPath())
+        for(let i = 0, len = this.disableScrollDomName.length; i < len; i++) {
+            let disableScrollDom = document.querySelector(this.disableScrollDomName[i])
+            if(path.indexOf(disableScrollDom) !== -1) {
+                return true;
+            }
+        }
+        return false
+    }
     resizeEvent() {
         this.containerDom.style.transition = "none";
         this.viewHeight = document.documentElement.clientHeight;
@@ -157,7 +161,7 @@ class FullPage {
         })
         document.addEventListener("touchend", this.throttle(this.touchEnd, this, this.delay))
         document.addEventListener("touchmove", event => {        // 阻止 touchmove 下拉刷新
-            if(!this.scrollable)  {
+            if(!this.checkDisableScroll(event) && !this.scrollable)  {
                 event.preventDefault()
             }
         }, { passive: false })
