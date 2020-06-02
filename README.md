@@ -21,7 +21,7 @@ fullpage.init()
 ```
 
 ## 选项
-+ `disableSrcollClassName` : (默认 [ ]) 禁止触发滚动的元素类名
++ `disableScrollDomName` : (默认 [ ]) 禁止触发滚动的元素名
 + `lastBar`: (默认 false) 页面是否显示最后一个单独高度版块(滚动距离会自动计算))
 
 ## 参数
