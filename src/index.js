@@ -150,16 +150,16 @@ class FullPage {
     }
     addScrollMouseEvent() {
         if (navigator.userAgent.toLowerCase().indexOf("firefox") === -1) {      // 鼠标滚轮监听，火狐鼠标滚动事件不同其他
-            document.addEventListener("mousewheel", this.throttle(this.scrollMouse, this, this.delay))
+            document.addEventListener("mousewheel", this.throttle(this.scrollMouse, this, this.delay), { passive: true })
         } else {
-            document.addEventListener("DOMMouseScroll", this.throttle(this.scrollMouse, this, this.delay))
+            document.addEventListener("DOMMouseScroll", this.throttle(this.scrollMouse, this, this.delay), { passive: true })
         }
     }
     addTouchMoveEvent() {
         document.addEventListener("touchstart", (event) => {
             this.startY = event.touches[0].pageY
-        })
-        document.addEventListener("touchend", this.throttle(this.touchEnd, this, this.delay))
+        }, { passive: true })
+        document.addEventListener("touchend", this.throttle(this.touchEnd, this, this.delay), { passive: true })
         document.addEventListener("touchmove", event => {        // 阻止 touchmove 下拉刷新
             if(!this.checkDisableScroll(event) && !this.scrollable)  {
                 event.preventDefault()
